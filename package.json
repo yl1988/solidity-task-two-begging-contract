@@ -1,0 +1,30 @@
+{
+  "name": "solidity-task-two-begging-contract",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yl1988/solidity-task-two-begging-contract.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yl1988/solidity-task-two-begging-contract/issues"
+  },
+  "homepage": "https://github.com/yl1988/solidity-task-two-begging-contract#readme",
+  "description": "",
+  "type": "module",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ignition": "^3.0.7",
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.2",
+    "@types/node": "^22.19.7",
+    "forge-std": "github:foundry-rs/forge-std#v1.9.4",
+    "hardhat": "^3.1.5",
+    "typescript": "~5.8.0",
+    "viem": "^2.44.4"
+  }
+}
