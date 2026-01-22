@@ -7,6 +7,14 @@ contract BeggingContract {
     // 录每个捐赠者的捐赠金额
     mapping (address => uint256) private _usersMoney;
 
+     // 排行榜功能
+    struct Donor {
+        address addr;
+        uint256 amount;
+    }
+    
+    Donor[3] private _top3;  // 固定维护前3名
+
     // 合约所有者
     address payable private _owner;
 
@@ -18,6 +26,7 @@ contract BeggingContract {
 
     event Donated(address indexed donor, uint256 money, uint256 timestamp);
     event Withdraw(address indexed owner, uint256 money, uint256 timestamp);
+    event LeaderboardUpdated(address[3] top3);
 
     // 构造函数，设置合约所有者
     constructor(uint256 _donationDuration) {
@@ -46,9 +55,74 @@ contract BeggingContract {
     function donate() external payable {
         require(msg.value > 0, "Donation amount must be greater than 0");
         _usersMoney[msg.sender] += msg.value;
+         // 更新排行榜
+        updateTop3(msg.sender, _donations[msg.sender]);
+
         Donated(msg.sender, msg.value, block.timestamp);
     }
 
+    /**
+     * 更新前3
+     */
+    function updateTop3(address donor, uint256 newTotal) private {
+            // 检查是否已在榜
+            for (uint256 i = 0; i < 3; i++) {
+                if (_top3[i].addr == donor) {
+                    _top3[i].amount = newTotal;
+                    sortTop3();
+                    emitLeaderboard();
+                    return;
+                }
+            }
+            
+            // 不在榜，尝试插入
+            for (uint256 i = 0; i < 3; i++) {
+                if (_top3[i].addr == address(0)) {
+                    // 有空位
+                    _top3[i] = Donor(donor, newTotal);
+                    sortTop3();
+                    emitLeaderboard();
+                    return;
+                }
+                
+                if (newTotal > _top3[i].amount) {
+                    // 插入到位置i
+                    for (uint256 j = 2; j > i; j--) {
+                        _top3[j] = _top3[j-1];
+                    }
+                    _top3[i] = Donor(donor, newTotal);
+                    emitLeaderboard();
+                    return;
+                }
+            }
+    }
+
+    /**
+     * 冒泡排序选出前3
+     */
+     function sortTop3() private {
+        // 冒泡排序（只有3个元素）
+        for (uint256 i = 0; i < 2; i++) {
+            for (uint256 j = 0; j < 2 - i; j++) {
+                if (_top3[j].amount < _top3[j+1].amount) {
+                    Donor memory temp = _top3[j];
+                    _top3[j] = _top3[j+1];
+                    _top3[j+1] = temp;
+                }
+            }
+        }
+    }
+    
+    /**
+     * 添加排序事件
+     */
+    function emitLeaderboard() private {
+        address[3] memory top3Addrs;
+        for (uint256 i = 0; i < 3; i++) {
+            top3Addrs[i] = _top3[i].addr;
+        }
+        emit LeaderboardUpdated(top3Addrs);
+    }
     /**
      * 合约所有者提取所有资金
      */
@@ -91,18 +165,15 @@ contract BeggingContract {
     }
 
     /**
-     * 获取捐赠排行榜（前N名）
+     * 获取捐赠排行榜（前3名）
      */
-    function getTopDonors(uint256 topN) external view returns(Donor[] memory) {
-        require(topN > 0, "topN must be between 1 and 10");
-
-        // 获取所有捐赠者记录的地址
-        address[] memory donors = new address[](100);
-        uint256 donorCount = 0;
-
-        Donor[] memory topDonors = new Donor[](topN);
-
-        return topDonors;
+    function getTopDonors() external view returns(Donor[] memory) {
+       
+        Donor[] memory result = new Donor[](3);
+        for (uint256 i = 0; i < 3; i++) {
+            result[i] = _top3[i];
+        }
+        return result;
     }
 
     /**
