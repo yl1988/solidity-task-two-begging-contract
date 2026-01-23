@@ -132,7 +132,7 @@ contract BeggingContract {
         require(balance > 0, "No funds to withdraw");
 
         // 将合约余额转账给所有者
-        (bool success) = _owner.call{value: balance}("");
+        (bool success,) = _owner.call{value: balance}("");
 
         // 方式1：transfer (2300 gas限制，不推荐)
         // _owner.transfer(balance);
@@ -202,7 +202,7 @@ contract BeggingContract {
     receive() external payable {
         totalReceived += msg.value;
         _usersMoney[msg.sender] += msg.value;
-        emit Donated(msg.sender, msg.value);
+        emit Donated(msg.sender, msg.value, block.timestamp);
     }
 
     fallback() external payable {

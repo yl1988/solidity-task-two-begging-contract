@@ -1,0 +1,39 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-3dcb3696bb71024a91c68e743c5fa36b7e4d76de",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/BeggingContract.sol": "project/contracts/BeggingContract.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/BeggingContract.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\n\r\npragma solidity ^0.8.20;\r\n\r\ncontract BeggingContract {\r\n\r\n    // 录每个捐赠者的捐赠金额\r\n    mapping (address => uint256) private _usersMoney;\r\n\r\n     // 排行榜功能\r\n    struct Donor {\r\n        address addr;\r\n        uint256 amount;\r\n    }\r\n    \r\n    Donor[3] private _top3;  // 固定维护前3名\r\n\r\n    // 合约所有者\r\n    address payable private _owner;\r\n\r\n     // 捐赠开始和结束时间\r\n    uint256 public donationStartTime;\r\n    uint256 public donationEndTime;\r\n\r\n    uint256 public totalReceived;\r\n\r\n    event Donated(address indexed donor, uint256 money, uint256 timestamp);\r\n    event Withdraw(address indexed owner, uint256 money, uint256 timestamp);\r\n    event LeaderboardUpdated(address[3] top3);\r\n\r\n    // 构造函数，设置合约所有者\r\n    constructor(uint256 _donationDuration) {\r\n        _owner = payable(msg.sender);\r\n        donationStartTime = block.timestamp;\r\n        donationEndTime = block.timestamp + _donationDuration;\r\n    }\r\n\r\n    // 修饰符，只有所有者可以调用\r\n    modifier onlyOwner(){\r\n        require(msg.sender == _owner, \"nly owner can call this function\");\r\n        _;\r\n    }\r\n\r\n    // 修饰符，检查捐赠时间是否有效\r\n    modifier donationPerioActive() {\r\n        require(block.timestamp >= donationStartTime, \"Donation period not started\");\r\n        require(block.timestamp <= donationEndTime, \"Donation period end\");\r\n        _;\r\n    }\r\n\r\n    /**\r\n     * 用户向合约发送以太币，并记录捐赠信息\r\n     * 使用 payable 修饰符接收以太币\r\n     */\r\n    function donate() external payable donationPerioActive {\r\n        require(msg.value > 0, \"Donation amount must be greater than 0\");\r\n        _usersMoney[msg.sender] += msg.value;\r\n         // 更新排行榜\r\n        updateTop3(msg.sender, _usersMoney[msg.sender]);\r\n\r\n        emit Donated(msg.sender, msg.value, block.timestamp);\r\n    }\r\n\r\n    /**\r\n     * 更新前3\r\n     */\r\n    function updateTop3(address donor, uint256 newTotal) private {\r\n            // 检查是否已在榜\r\n            for (uint256 i = 0; i < 3; i++) {\r\n                if (_top3[i].addr == donor) {\r\n                    _top3[i].amount = newTotal;\r\n                    sortTop3();\r\n                    emitLeaderboard();\r\n                    return;\r\n                }\r\n            }\r\n            \r\n            // 不在榜，尝试插入\r\n            for (uint256 i = 0; i < 3; i++) {\r\n                if (_top3[i].addr == address(0)) {\r\n                    // 有空位\r\n                    _top3[i] = Donor(donor, newTotal);\r\n                    sortTop3();\r\n                    emitLeaderboard();\r\n                    return;\r\n                }\r\n                \r\n                if (newTotal > _top3[i].amount) {\r\n                    // 插入到位置i\r\n                    for (uint256 j = 2; j > i; j--) {\r\n                        _top3[j] = _top3[j-1];\r\n                    }\r\n                    _top3[i] = Donor(donor, newTotal);\r\n                    emitLeaderboard();\r\n                    return;\r\n                }\r\n            }\r\n    }\r\n\r\n    /**\r\n     * 冒泡排序选出前3\r\n     */\r\n     function sortTop3() private {\r\n        // 冒泡排序（只有3个元素）\r\n        for (uint256 i = 0; i < 2; i++) {\r\n            for (uint256 j = 0; j < 2 - i; j++) {\r\n                if (_top3[j].amount < _top3[j+1].amount) {\r\n                    Donor memory temp = _top3[j];\r\n                    _top3[j] = _top3[j+1];\r\n                    _top3[j+1] = temp;\r\n                }\r\n            }\r\n        }\r\n    }\r\n    \r\n    /**\r\n     * 添加排序事件\r\n     */\r\n    function emitLeaderboard() private {\r\n        address[3] memory top3Addrs;\r\n        for (uint256 i = 0; i < 3; i++) {\r\n            top3Addrs[i] = _top3[i].addr;\r\n        }\r\n        emit LeaderboardUpdated(top3Addrs);\r\n    }\r\n    /**\r\n     * 合约所有者提取所有资金\r\n     */\r\n    function withdraw () external onlyOwner {\r\n        // 获取合约余额\r\n        uint256 balance = address(this).balance;\r\n        require(balance > 0, \"No funds to withdraw\");\r\n\r\n        // 将合约余额转账给所有者\r\n        (bool success,) = _owner.call{value: balance}(\"\");\r\n\r\n        // 方式1：transfer (2300 gas限制，不推荐)\r\n        // _owner.transfer(balance);\r\n        // // 问题：固定2300 gas，可能不够复杂合约接收\r\n\r\n        // // 方式2：send (2300 gas限制，不推荐)\r\n        // bool success = _owner.send(balance);\r\n        // // 问题：同样有gas限制\r\n\r\n        // // 方式3：call (推荐，forward all gas)\r\n        // (bool success, ) = _owner.call{value: balance}(\"\");\r\n        // // 优点：转发所有剩余gas，更安全\r\n        // // 缺点：需要检查success返回值\r\n\r\n        // // 方式4：call with data\r\n        // (bool success, ) = _owner.call{value: balance}(\r\n        //     abi.encodeWithSignature(\"receivePayment()\")\r\n        // );\r\n        // // 可以同时调用接收者的函数\r\n        require(success, \"Transfer failed\");\r\n       \r\n        emit Withdraw(_owner, balance, block.timestamp);\r\n    }\r\n\r\n    /**\r\n     * 查询某个地址的捐赠金额\r\n     */\r\n    function getDonation (address target) public view returns(uint256) {\r\n        return _usersMoney[target];\r\n    }\r\n\r\n    /**\r\n     * 获取捐赠排行榜（前3名）\r\n     */\r\n    function getTopDonors() external view returns(Donor[] memory) {\r\n       \r\n        Donor[] memory result = new Donor[](3);\r\n        for (uint256 i = 0; i < 3; i++) {\r\n            result[i] = _top3[i];\r\n        }\r\n        return result;\r\n    }\r\n\r\n    /**\r\n     *获取合约所有者地址\r\n    */\r\n\r\n    function getOwner() external view returns(address) {\r\n        return _owner;\r\n    }\r\n\r\n    /**\r\n     *\r\n     */\r\n    function getContractBanlance() external view returns(uint256) {\r\n        return address(this).balance;\r\n    }\r\n\r\n    /**\r\n     * 获取捐赠时间段信息\r\n     */\r\n    function getDonationPeriod() external view returns(uint256 start, uint256 end) {\r\n        return (donationStartTime, donationEndTime);\r\n    }\r\n\r\n    // 接收以太币的回退函数\r\n    receive() external payable {\r\n        totalReceived += msg.value;\r\n        _usersMoney[msg.sender] += msg.value;\r\n        emit Donated(msg.sender, msg.value, block.timestamp);\r\n    }\r\n\r\n    fallback() external payable {\r\n        revert(\"Use donate() function\");\r\n    }\r\n\r\n}"
+      }
+    }
+  }
+}
