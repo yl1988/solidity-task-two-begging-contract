@@ -52,13 +52,13 @@ contract BeggingContract {
      * 用户向合约发送以太币，并记录捐赠信息
      * 使用 payable 修饰符接收以太币
      */
-    function donate() external payable {
+    function donate() external payable donationPerioActive {
         require(msg.value > 0, "Donation amount must be greater than 0");
         _usersMoney[msg.sender] += msg.value;
          // 更新排行榜
-        updateTop3(msg.sender, _donations[msg.sender]);
+        updateTop3(msg.sender, _usersMoney[msg.sender]);
 
-        Donated(msg.sender, msg.value, block.timestamp);
+        emit Donated(msg.sender, msg.value, block.timestamp);
     }
 
     /**
